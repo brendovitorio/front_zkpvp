@@ -576,6 +576,18 @@ export function searchStaffPlayers(search: string): Promise<{ players: StaffPlay
   return apiFetch<{ players: StaffPlayerLookup[] }>(`/staff/players?${params.toString()}`)
 }
 
+export interface AuthorizedPlayer {
+  playerId: string
+  displayName: string
+  discordUsername: string
+  linkedToFiveM: boolean
+  entitlement: { id: string; kind: EntitlementKind; key: string; durationUnit: EntitlementDuration; grantedAt: string; expiresAt: string | null }
+}
+
+export function getAuthorizedPlayers(): Promise<{ players: AuthorizedPlayer[] }> {
+  return apiFetch<{ players: AuthorizedPlayer[] }>('/staff/authorized-players')
+}
+
 export interface GrantEntitlementResponse {
   entitlement: {
     id: string
@@ -605,3 +617,72 @@ export function revokePlayerEntitlement(entitlementId: string): Promise<{ ok: bo
     method: 'DELETE',
   })
 }
+
+// --- staff operations center ----------------------------------------------
+export interface StaffDashboardSummary {
+  players: number; linkedPlayers: number; activeEntitlements: number; lifetimeEntitlements: number;
+  orders: number; revenueCents: number; activeProducts: number; upcomingEvents: number; staffMembers: number;
+}
+export function getStaffDashboardSummary() {
+  return apiFetch<{ summary: StaffDashboardSummary }>('/staff/dashboard/summary')
+}
+export interface StaffDirectoryPlayer {
+  id:string; displayName:string; discordUsername:string; discordId:string; fivemLicense:string|null;
+  linkedToFiveM:boolean; createdAt:string; matches:number; wins:number; activeEntitlements:number; ordersCount:number;
+}
+export function getStaffDirectoryPlayers(search='') {
+  const params=new URLSearchParams(); if(search.trim()) params.set('search',search.trim())
+  const query=params.toString()
+  return apiFetch<{players:StaffDirectoryPlayer[]}>(`/staff/players/all${query?`?${query}`:''}`)
+}
+export interface StaffAuditEntry {
+  id:string; action:string; details:unknown; createdAt:string; staffUsername:string;
+  targetPlayerId:string|null; targetPlayerName:string|null;
+}
+export function getStaffAudit(limit=100) { return apiFetch<{entries:StaffAuditEntry[]}>(`/staff/audit?limit=${limit}`) }
+export interface StaffTeamMember { id:string; username:string; role:'admin'|'moderator'|'attendant'; createdAt:string }
+export function getStaffTeam() { return apiFetch<{members:StaffTeamMember[]}>('/staff/team') }
+export function updateStaffRole(id:string, role:StaffTeamMember['role']) {
+  return apiFetch<{member:StaffTeamMember}>(`/staff/team/${encodeURIComponent(id)}/role`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({role})})
+}
+
+
+// --- staff administration suite --------------------------------------------
+export interface StaffPunishment {
+  id:string; player_id:string; display_name:string; discord_username:string;
+  type:'warning'|'temporary_ban'|'permanent_ban'; reason:string; evidence_url:string|null;
+  expires_at:string|null; revoked_at:string|null; created_at:string; staff_username:string|null;
+}
+export interface StaffTicket {
+  id:string; player_id:string|null; display_name:string|null; subject:string; body:string;
+  category:string; priority:'low'|'normal'|'high'|'urgent'; status:'open'|'in_progress'|'resolved'|'closed';
+  created_at:string; updated_at:string; assigned_username:string|null; created_by_username:string|null;
+}
+export interface StaffOrder {
+  id:string; player_id:string; display_name:string; discord_username:string; status:string;
+  total_cents:number; payment_method:string; created_at:string;
+  items:Array<{name:string;quantity:number;unitPriceCents:number}>
+}
+export interface StaffAdminProfile {
+  player:{id:string;discord_id:string;discord_username:string;display_name:string;fivem_license:string|null;created_at:string;matches:number;wins:number;kd:number};
+  entitlements:Array<Record<string,unknown>>;
+  punishments:Array<Record<string,unknown>>;
+  notes:Array<{id:string;note:string;created_at:string;username:string|null}>;
+  orders:Array<{id:string;status:string;total_cents:number;payment_method:string;created_at:string}>;
+}
+export type StaffPermission = 'players.read'|'players.manage'|'punishments.read'|'punishments.manage'|'tickets.read'|'tickets.manage'|'store.read'|'store.manage'|'orders.read'|'content.manage'|'monitor.read'|'audit.read'|'team.manage'|'notifications.manage';
+
+export const getStaffPlayerProfile=(id:string)=>apiFetch<StaffAdminProfile>(`/staff/players/${encodeURIComponent(id)}/admin-profile`);
+export const addStaffPlayerNote=(id:string,note:string)=>apiFetch<{note:{id:string;note:string;created_at:string}}>(`/staff/players/${encodeURIComponent(id)}/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({note})});
+export const getStaffPunishments=()=>apiFetch<{punishments:StaffPunishment[]}>('/staff/punishments');
+export const createStaffPunishment=(id:string,input:{type:StaffPunishment['type'];reason:string;evidenceUrl?:string|null;expiresAt?:string|null})=>apiFetch<{punishment:StaffPunishment}>(`/staff/players/${encodeURIComponent(id)}/punishments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)});
+export const revokeStaffPunishment=(id:string)=>apiFetch<{ok:boolean}>(`/staff/punishments/${encodeURIComponent(id)}/revoke`,{method:'POST'});
+export const getStaffTickets=(status='')=>apiFetch<{tickets:StaffTicket[]}>(`/staff/tickets${status?`?status=${encodeURIComponent(status)}`:''}`);
+export const createStaffTicket=(input:{playerId?:string|null;subject:string;body:string;category:string;priority:string})=>apiFetch<{ticket:StaffTicket}>('/staff/tickets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)});
+export const updateStaffTicket=(id:string,status:StaffTicket['status'],priority?:StaffTicket['priority'])=>apiFetch<{ticket:StaffTicket}>(`/staff/tickets/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,priority})});
+export const getStaffOrders=()=>apiFetch<{orders:StaffOrder[]}>('/staff/orders');
+export const getStaffNotifications=()=>apiFetch<{notifications:Array<{id:string;title:string;message:string;severity:string;created_at:string;read:boolean}>}>('/staff/notifications');
+export const createStaffNotification=(input:{title:string;message:string;severity:string})=>apiFetch('/staff/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)});
+export const markStaffNotificationRead=(id:string)=>apiFetch(`/staff/notifications/${encodeURIComponent(id)}/read`,{method:'POST'});
+export const getStaffMemberPermissions=(id:string)=>apiFetch<{permissions:StaffPermission[]}>(`/staff/team/${encodeURIComponent(id)}/permissions`);
+export const updateStaffMemberPermissions=(id:string,permissions:StaffPermission[])=>apiFetch<{ok:boolean;permissions:StaffPermission[]}>(`/staff/team/${encodeURIComponent(id)}/permissions`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({permissions})});

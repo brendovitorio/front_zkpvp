@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../../components/ui/PageHeader'
+import { StaffOverview, StaffPlayerDirectory, StaffAuditPanel, StaffTeamPanel, StaffServerMonitor, StaffPermissionMatrix } from './StaffOperations'
+import { StaffPlayerProfiles, StaffPunishmentsPanel, StaffTicketsPanel, StaffOrdersPanel, StaffNotificationsPanel } from './StaffAdvanced'
 import {
   buttonVariants,
   labelClass,
@@ -14,6 +16,8 @@ import {
   createStaffStoreItem,
   deactivateStaffStoreItem,
   getStaffStoreItems,
+  getAuthorizedPlayers,
+  type AuthorizedPlayer,
   updateStaffStoreItem,
   grantPlayerEntitlement,
   revokePlayerEntitlement,
@@ -81,30 +85,87 @@ function FieldError({ message }: { message?: string }) {
  * dashboard renders. The API still independently protects every operation
  * with `requireStaff`.
  */
+type StaffSection = 'overview' | 'directory' | 'profiles' | 'players' | 'access' | 'punishments' | 'tickets' | 'store' | 'orders' | 'content' | 'audit' | 'team' | 'monitor' | 'notifications'
+
 export function StaffDashboard() {
+  const [section, setSection] = useState<StaffSection>('overview')
+  const tabs: { id: StaffSection; label: string; detail: string }[] = [
+    { id: 'overview', label: 'Visão geral', detail: 'Indicadores e resumo' },
+    { id: 'directory', label: 'Todos os jogadores', detail: 'Diretório e perfis' },
+    { id: 'profiles', label: 'Ficha do jogador', detail: 'Histórico e anotações' },
+    { id: 'players', label: 'Jogadores liberados', detail: 'Permissões ativas' },
+    { id: 'access', label: 'Acessos', detail: 'Conceder e revogar' },
+    { id: 'punishments', label: 'Punições', detail: 'Advertências e banimentos' },
+    { id: 'tickets', label: 'Atendimento', detail: 'Tickets e denúncias' },
+    { id: 'store', label: 'Loja', detail: 'Produtos e estoque' },
+    { id: 'orders', label: 'Financeiro', detail: 'Pedidos e faturamento' },
+    { id: 'content', label: 'Conteúdo', detail: 'Eventos e atualizações' },
+    { id: 'monitor', label: 'Monitoramento', detail: 'Status do FiveM' },
+    { id: 'audit', label: 'Auditoria', detail: 'Histórico administrativo' },
+    { id: 'team', label: 'Equipe Staff', detail: 'Cargos e hierarquia' },
+    { id: 'notifications', label: 'Comunicados', detail: 'Alertas internos' },
+  ]
   return (
     <section className={cn('staff-dashboard-page pb-20', pageShellClass)}>
-      <PageHeader
-        title="Painel da"
-        titleAccent="equipe"
-        lede="Concessões de acesso, changelog, eventos e números da home."
-      />
-      <div className="mb-6">
-        <StoreProductsForm />
-      </div>
-      <div className="mb-6 grid items-start gap-6 lg:grid-cols-2">
-        <EntitlementForm />
-        <RevokeEntitlementForm />
-      </div>
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <ChangelogForm />
-        <div className="flex flex-col gap-6">
-          <EventForm />
-          <HomeStatForm />
+      <PageHeader title="Central da" titleAccent="equipe" lede="Gerencie jogadores, permissões, loja e conteúdo em áreas separadas." />
+      <div className="staff-console mb-8">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div><p className="text-xs font-bold uppercase tracking-[.22em] text-accent">ZKPVP · STAFF CONTROL</p><h2 className="mt-1 text-2xl text-ink">Central de operações</h2></div>
+          <span className="rounded-full border border-accent/30 px-3 py-1 text-xs text-accent">Sessão autenticada</span>
         </div>
+        <nav className="staff-tabs" aria-label="Seções do painel Staff">
+          {tabs.map(tab => <button key={tab.id} type="button" onClick={() => setSection(tab.id)} className={cn('staff-tab', section === tab.id && 'staff-tab--active')} aria-current={section === tab.id ? 'page' : undefined}>
+            <span>{tab.label}</span><small>{tab.detail}</small>
+          </button>)}
+        </nav>
       </div>
+      {section === 'overview' && <div className="space-y-6"><StaffOverview /><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{tabs.filter(tab => tab.id !== 'overview').map(tab => <button key={tab.id} type="button" onClick={() => setSection(tab.id)} className="staff-shortcut text-left"><span className="text-xs font-bold uppercase tracking-widest text-accent">Acessar seção</span><strong className="mt-2 block text-xl text-ink">{tab.label}</strong><span className="mt-1 block text-sm text-mute">{tab.detail}</span><span className="mt-5 block text-sm text-accent">Abrir painel →</span></button>)}</div></div>}
+      {section === 'directory' && <StaffPlayerDirectory />}
+      {section === 'profiles' && <StaffPlayerProfiles />}
+      {section === 'players' && <AuthorizedPlayers />}
+      {section === 'monitor' && <StaffServerMonitor />}
+      {section === 'audit' && <StaffAuditPanel />}
+      {section === 'team' && <><StaffTeamPanel /><StaffPermissionMatrix /></>}
+      {section === 'punishments' && <StaffPunishmentsPanel />}
+      {section === 'tickets' && <StaffTicketsPanel />}
+      {section === 'orders' && <StaffOrdersPanel />}
+      {section === 'notifications' && <StaffNotificationsPanel />}
+      {section === 'access' && <div className="grid items-start gap-6 xl:grid-cols-2"><EntitlementForm /><RevokeEntitlementForm /></div>}
+      {section === 'store' && <StoreProductsForm />}
+      {section === 'content' && <div className="grid items-start gap-6 xl:grid-cols-2"><ChangelogForm /><div className="flex flex-col gap-6"><EventForm /><HomeStatForm /></div></div>}
     </section>
   )
+}
+
+function AuthorizedPlayers() {
+  const [players, setPlayers] = useState<AuthorizedPlayer[]>([])
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+  useEffect(() => {
+    let active = true
+    setLoading(true); setError('')
+    getAuthorizedPlayers().then(({ players: rows }) => { if (active) setPlayers(rows) })
+      .catch(() => { if (active) setError('Não foi possível carregar os jogadores liberados. Verifique sua sessão e tente novamente.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [refreshKey])
+  const filtered = useMemo(() => players.filter(p => `${p.displayName} ${p.discordUsername} ${p.entitlement.key} ${p.entitlement.kind}`.toLowerCase().includes(search.toLowerCase())), [players, search])
+  const uniquePlayers = new Set(players.map(p => p.playerId)).size
+  return <section className="space-y-5">
+    <div className="grid gap-3 sm:grid-cols-3">
+      <div className="staff-metric"><small>Jogadores liberados</small><strong>{loading ? '—' : uniquePlayers}</strong></div>
+      <div className="staff-metric"><small>Permissões ativas</small><strong>{loading ? '—' : players.length}</strong></div>
+      <div className="staff-metric"><small>Vitalícias</small><strong>{loading ? '—' : players.filter(p => !p.entitlement.expiresAt).length}</strong></div>
+    </div>
+    <div className="staff-panel">
+      <div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-2xl text-ink">Jogadores liberados</h2><p className="text-sm text-mute">Lista atualizada dos jogadores com permissões válidas no servidor.</p></div><button type="button" className={cn(buttonVariants({ intent: 'outline' }))} onClick={() => setRefreshKey(v => v + 1)} disabled={loading}>↻ Atualizar</button></div>
+      <div className="mt-5"><label className={labelClass} htmlFor="authorized-search">Filtrar jogadores ou permissões</label><input id="authorized-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Nome, Discord, VIP, veículo…" /></div>
+      {error && <p role="alert" className="mt-4 text-danger">{error}</p>}
+      {loading ? <p className="py-10 text-center text-mute">Carregando jogadores…</p> : filtered.length === 0 ? <p className="py-10 text-center text-mute">{players.length ? 'Nenhum resultado para esse filtro.' : 'Nenhum jogador possui permissões ativas.'}</p> : <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[680px] text-left"><thead><tr className="border-b border-line text-xs uppercase tracking-wider text-mute"><th className="p-3">Jogador</th><th className="p-3">Permissão</th><th className="p-3">Validade</th><th className="p-3">FiveM</th></tr></thead><tbody>{filtered.map(row => <tr key={row.entitlement.id} className="border-b border-line/70"><td className="p-3"><strong className="block text-ink">{row.displayName}</strong><span className="text-xs text-mute">@{row.discordUsername}</span></td><td className="p-3"><span className="rounded-full border border-accent/30 px-2 py-1 text-xs text-accent">{row.entitlement.kind.toUpperCase()} · {row.entitlement.key}</span></td><td className="p-3 text-sm text-mute">{row.entitlement.expiresAt ? new Date(row.entitlement.expiresAt).toLocaleString('pt-BR') : 'Vitalício'}</td><td className="p-3 text-sm">{row.linkedToFiveM ? <span className="text-success">Vinculado</span> : <span className="text-danger">Não vinculado</span>}</td></tr>)}</tbody></table></div>}
+    </div>
+  </section>
 }
 
 function StoreProductsForm() {
