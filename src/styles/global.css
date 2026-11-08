@@ -1,0 +1,636 @@
+/*
+ * ZKPVP global stylesheet — Tailwind v4 entry point.
+ *
+ * Layering:
+ *   1. tailwindcss          — preflight + utility engine
+ *   2. tokens.css (@theme)  — the binding palette/typography from docs/design.md
+ *   3. @layer base          — document defaults (dark color-scheme, type, focus, forms)
+ *   4. @utility blocks      — the ZKPVP visual vocabulary: chamfered (clip-path)
+ *                             corners, 1px violet frames, glow, grid backdrop,
+ *                             slanted scoreboard numerals, scroll reveal
+ *
+ * Components compose these utilities directly in JSX; there is deliberately no
+ * per-component CSS file.
+ */
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* ---------------------------------------------------------------- base --- */
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background-color: var(--color-void);
+    scrollbar-color: var(--color-line-strong) var(--color-void);
+    scrollbar-width: thin;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse 82% 35% at 52% -12%, color-mix(in oklab, var(--color-accent) 9%, transparent), transparent 74%),
+      var(--color-void);
+    color: var(--color-ink);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  @keyframes page-enter {
+    from { opacity: 0; transform: translateY(9px); filter: blur(2px); }
+    to { opacity: 1; transform: translateY(0); filter: blur(0); }
+  }
+
+  @keyframes brand-breathe {
+    0%, 100% { filter: drop-shadow(0 0 0 color-mix(in oklab, var(--color-accent) 0%, transparent)); }
+    50% { filter: drop-shadow(0 0 8px color-mix(in oklab, var(--color-accent) 36%, transparent)); }
+  }
+
+  @keyframes brand-shine {
+    0%, 72% { transform: translateX(-135%) skewX(-18deg); opacity: 0; }
+    77% { opacity: .7; }
+    86%, 100% { transform: translateX(145%) skewX(-18deg); opacity: 0; }
+  }
+
+  @keyframes typing-write {
+    from { max-width: 0; }
+    to { max-width: var(--typing-width); }
+  }
+
+  @keyframes typing-caret {
+    0%, 45% { border-color: var(--color-accent); }
+    46%, 100% { border-color: transparent; }
+  }
+
+  .typing-line {
+    display: inline-block;
+    max-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+
+  .typing-line--started {
+    max-width: 0;
+    animation: typing-write var(--typing-duration) steps(var(--typing-steps), end) var(--typing-delay) both;
+  }
+
+  .typing-line--started:not(.typing-line--finished) {
+    border-right: 2px solid var(--color-accent);
+    animation-name: typing-write, typing-caret;
+    animation-duration: var(--typing-duration), 700ms;
+    animation-timing-function: steps(var(--typing-steps), end), steps(1, end);
+    animation-delay: var(--typing-delay), var(--typing-delay);
+    animation-iteration-count: 1, infinite;
+    animation-fill-mode: both, none;
+  }
+
+  .typing-line--finished { max-width: var(--typing-width); border-right: 0; animation: none; }
+
+  .page-enter { animation: page-enter 420ms var(--ease-snap) both; }
+
+  .nav__brand::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 42%;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / .3), transparent);
+    animation: brand-shine 7s ease-in-out infinite;
+  }
+
+  .nav__brand-mark { animation: brand-breathe 5s ease-in-out infinite; }
+  .nav__brand:hover .nav__brand-mark {
+    filter: drop-shadow(0 0 12px color-mix(in oklab, var(--color-accent) 55%, transparent));
+    transform: translateY(-1px) scale(1.045);
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 0.01em;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-accent) 55%, transparent);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* Form-control defaults so any control is on-brand even without classes. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    width: 100%;
+    background: var(--color-void);
+    color: var(--color-ink);
+    border: 1px solid var(--color-line);
+    padding: 0.625rem 0.75rem;
+    font-size: 0.9375rem;
+    transition: border-color 150ms, box-shadow 150ms;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: color-mix(in oklab, var(--color-mute) 70%, transparent);
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 25%, transparent);
+  }
+
+  input[type="checkbox"] {
+    accent-color: var(--color-accent);
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8) sepia(1) hue-rotate(220deg);
+  }
+
+  textarea {
+    min-height: 7rem;
+    resize: vertical;
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    padding: 0.1em 0.4em;
+    background: color-mix(in oklab, var(--color-accent) 16%, transparent);
+    color: var(--color-ink);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-void);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border: 2px solid var(--color-void);
+  }
+}
+
+/* ----------------------------------------------------- shape: chamfers --- */
+/*
+ * Cut corners (top-left + bottom-right) instead of a uniform border-radius.
+ * `--cut` is read at use time so `chamfer-sm` / `chamfer-lg` only swap the size.
+ */
+
+/*
+ * `--cut` is registered non-inheriting so a `chamfer-sm` parent never leaks
+ * its size into a nested chamfered child; unset means the medium size.
+ */
+@property --cut {
+  syntax: "*";
+  inherits: false;
+}
+
+@utility chamfer {
+  clip-path: polygon(
+    var(--cut, var(--chamfer-md)) 0,
+    100% 0,
+    100% calc(100% - var(--cut, var(--chamfer-md))),
+    calc(100% - var(--cut, var(--chamfer-md))) 100%,
+    0 100%,
+    0 var(--cut, var(--chamfer-md))
+  );
+}
+
+@utility chamfer-sm {
+  --cut: var(--chamfer-sm);
+}
+
+@utility chamfer-lg {
+  --cut: var(--chamfer-lg);
+}
+
+/*
+ * `frame`: a chamfered panel with a true 1px edge that also follows the
+ * diagonal cuts. A plain `border` cannot do this (clip-path slices it off at
+ * the corners), so the element paints the edge color and a `::before`
+ * inset by 1px paints the fill, clipped with a cut reduced by (sqrt2 - 1)px so
+ * the diagonal edge stays 1px wide.
+ *
+ *   --frame-edge  edge color   (default: violet hairline)
+ *   --frame-fill  fill color   (default: panel surface)
+ *
+ * The element must NOT also get a `bg-*` class — that would overwrite the edge.
+ * Outer glow cannot live here (clip-path also clips box-shadow/filter on the
+ * same element) — put `glow` on a parent wrapper instead.
+ */
+@utility frame {
+  --frame-cut: var(--cut, var(--chamfer-md));
+  position: relative;
+  isolation: isolate;
+  background: var(--frame-edge, var(--color-line));
+  clip-path: polygon(
+    var(--cut, var(--chamfer-md)) 0,
+    100% 0,
+    100% calc(100% - var(--cut, var(--chamfer-md))),
+    calc(100% - var(--cut, var(--chamfer-md))) 100%,
+    0 100%,
+    0 var(--cut, var(--chamfer-md))
+  );
+
+  &::before {
+    --inner-cut: calc(var(--frame-cut) - 0.42px);
+    content: "";
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    background: var(--frame-fill, var(--color-panel));
+    clip-path: polygon(
+      var(--inner-cut) 0,
+      100% 0,
+      100% calc(100% - var(--inner-cut)),
+      calc(100% - var(--inner-cut)) 100%,
+      0 100%,
+      0 var(--inner-cut)
+    );
+  }
+}
+
+/* Brighter edge for the one emphasized panel on a page (featured event, cart). */
+@utility frame-hot {
+  --frame-edge: linear-gradient(
+    135deg,
+    var(--color-accent),
+    var(--color-line) 45%,
+    var(--color-line) 70%,
+    var(--color-accent)
+  );
+}
+
+/* Faint violet wash inside a frame, for hover / active states. */
+@utility frame-lit {
+  --frame-fill: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--color-accent) 14%, var(--color-panel)),
+    var(--color-panel) 60%
+  );
+}
+
+/* ------------------------------------------------------- light effects --- */
+
+/* Soft violet outer glow. Use on a wrapper around a chamfered element. */
+@utility glow {
+  filter: drop-shadow(0 0 18px color-mix(in oklab, var(--color-accent) 32%, transparent));
+}
+
+/* Text glow for scoreboard numerals. */
+@utility glyph-glow {
+  text-shadow: 0 0 22px color-mix(in oklab, currentColor 45%, transparent);
+}
+
+/* Outlined display text (hero wordmark). */
+@utility glyph-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--color-accent);
+}
+
+/*
+ * Arena grid backdrop for the hero: thin violet grid lines fading out from the
+ * top-right, plus a radial violet bloom. Pure CSS, no image request.
+ */
+@utility arena-backdrop {
+  background-image:
+    radial-gradient(
+      60% 70% at 78% 18%,
+      color-mix(in oklab, var(--color-accent) 26%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(to right, color-mix(in oklab, var(--color-accent) 11%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-accent) 11%, transparent) 1px, transparent 1px);
+  background-size: 100% 100%, 56px 56px, 56px 56px;
+  mask-image: linear-gradient(to bottom, black 55%, transparent);
+}
+
+/* ---------------------------------------------------- scene / atmosphere --- */
+/*
+ * The "lit scene" layer that sits behind hero and page-header headlines.
+ * Everything here is decorative (rendered aria-hidden by <SceneBackdrop>)
+ * and derived only from the binding accent hue — no new colors.
+ */
+
+/*
+ * Heavily blurred violet light source. Size/position come from the element's
+ * own utilities; this only paints the soft falloff. Kept below ~35% alpha so
+ * ink text on top stays well above WCAG AA contrast.
+ */
+@utility scene-glow {
+  pointer-events: none;
+  border-radius: 9999px;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--color-accent) 34%, transparent),
+    color-mix(in oklab, var(--color-accent) 12%, transparent) 55%,
+    transparent
+  );
+  filter: blur(48px);
+}
+
+/* Cooler, deeper secondary light: same hue mixed toward the base so the
+   scene reads as two light sources without introducing a second color. */
+@utility scene-glow-deep {
+  pointer-events: none;
+  border-radius: 9999px;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--color-accent) 22%, var(--color-void)),
+    transparent
+  );
+  filter: blur(64px);
+  opacity: 0.85;
+}
+
+/*
+ * Decorative halo ring (Metrópole-style orbit behind the hero): a 1px
+ * hairline circle whose brightness sweeps around via a conic gradient, with
+ * a soft blur copy underneath for bloom.
+ */
+@utility scene-ring {
+  pointer-events: none;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from var(--scene-ring-angle, 0deg),
+    color-mix(in oklab, var(--color-accent) 85%, transparent),
+    color-mix(in oklab, var(--color-accent) 8%, transparent) 22%,
+    transparent 40%,
+    color-mix(in oklab, var(--color-accent) 18%, transparent) 62%,
+    color-mix(in oklab, var(--color-accent) 70%, transparent)
+  );
+  mask: radial-gradient(closest-side, transparent calc(100% - 1.5px), black calc(100% - 1px));
+  animation: ring-turn 28s linear infinite;
+}
+
+@utility scene-ring-bloom {
+  pointer-events: none;
+  border-radius: 9999px;
+  box-shadow:
+    0 0 60px 4px color-mix(in oklab, var(--color-accent) 22%, transparent),
+    inset 0 0 80px color-mix(in oklab, var(--color-accent) 16%, transparent);
+}
+
+/* Full-bleed layer that escapes the page shell but clips its own children,
+   so oversized glows never create horizontal scroll. */
+@utility scene-bleed {
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Ghost wordmark: huge outlined display type used as background scenery. */
+@utility glyph-ghost {
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in oklab, var(--color-accent) 42%, transparent);
+  user-select: none;
+  white-space: nowrap;
+  line-height: 0.8;
+}
+
+/* Slow breathing glow on the hero ghost wordmark. */
+@utility ghost-pulse {
+  animation: ghost-pulse 7s ease-in-out infinite;
+}
+
+@property --scene-ring-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes ring-turn {
+  to {
+    --scene-ring-angle: 360deg;
+  }
+}
+
+@keyframes ghost-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 22px color-mix(in oklab, var(--color-accent) 55%, transparent));
+  }
+}
+
+/* --------------------------------------------------------- CTA halo glow --- */
+/*
+ * Wrap a chamfered CTA in `cta-halo` to give it a slowly rotating light edge
+ * plus soft bloom. The button keeps its own clip-path cut corners; the halo
+ * lives on the wrapper because clip-path would otherwise clip the glow.
+ *
+ *   ::before  blurred conic bloom behind the button
+ *   ::after   2px chamfered conic edge (same polygon as `chamfer`, grown 2px)
+ *
+ * `cta-halo-hover` keeps it dark at rest and lights it on hover/focus — used
+ * for the nav login CTA so the hero CTA stays the one idle-lit element.
+ */
+@property --halo-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes halo-spin {
+  to {
+    --halo-angle: 360deg;
+  }
+}
+
+@utility cta-halo {
+  --halo-cut: var(--chamfer-lg);
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    background: conic-gradient(
+      from var(--halo-angle),
+      transparent 0deg,
+      var(--color-accent) 60deg,
+      var(--color-ink) 90deg,
+      var(--color-accent) 120deg,
+      transparent 200deg,
+      transparent 360deg
+    );
+    animation: halo-spin 4.5s linear infinite;
+    transition: opacity 300ms var(--ease-snap);
+  }
+
+  &::before {
+    inset: -6px;
+    filter: blur(16px);
+    opacity: 0.55;
+  }
+
+  &::after {
+    inset: -2px;
+    opacity: 0.9;
+    clip-path: polygon(
+      calc(var(--halo-cut) + 1px) 0,
+      100% 0,
+      100% calc(100% - var(--halo-cut) - 1px),
+      calc(100% - var(--halo-cut) - 1px) 100%,
+      0 100%,
+      0 calc(var(--halo-cut) + 1px)
+    );
+  }
+
+  &:hover::before,
+  &:focus-within::before {
+    opacity: 0.85;
+  }
+}
+
+@utility cta-halo-sm {
+  --halo-cut: var(--chamfer-sm);
+}
+
+@utility cta-halo-hover {
+  &::before,
+  &::after {
+    opacity: 0;
+  }
+
+  &:hover::before,
+  &:focus-within::before {
+    opacity: 0.6;
+  }
+
+  &:hover::after,
+  &:focus-within::after {
+    opacity: 0.9;
+  }
+}
+
+/* ---------------------------------------------------------- typography --- */
+
+/*
+ * Poster headline: the editorial-scale display line used by the home hero
+ * and every page title. Uppercase condensed Rajdhani, tight leading, sized
+ * with clamp() so it scales from phone to wide desktop without breakpoints.
+ */
+@utility headline-poster {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 0.86;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+/* Accent word inside a headline (color-split device). Violet with a soft
+   bloom; never the emphasis magenta, which stays reserved for numbers. */
+@utility headline-accent {
+  color: var(--color-accent);
+  text-shadow: 0 0 26px color-mix(in oklab, var(--color-accent) 30%, transparent);
+}
+
+/*
+ * Scoreboard numerals: condensed display face, slight forward lean, tabular
+ * figures so live numbers don't jitter as they change.
+ */
+@utility scoreboard {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  display: inline-block;
+  transform: skewX(-7deg);
+}
+
+/* ---------------------------------------------------------------- motion --- */
+
+@keyframes reveal-in {
+  /* Starts dimmed, never invisible: content stays legible in full-page
+     captures / print / when the timeline never advances. */
+  from {
+    opacity: 0.25;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * Scroll reveal with zero JavaScript: CSS scroll-driven animation where the
+ * browser supports it, a plain no-op everywhere else (content is never hidden
+ * waiting on JS). Disabled under prefers-reduced-motion below.
+ */
+@utility reveal {
+  @supports (animation-timeline: view()) {
+    animation: reveal-in linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 55%;
+  }
+}
+
+/* Legacy hook kept for components that still mark display numerals with it. */
+.display {
+  font-family: var(--font-display);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-timeline: auto !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Decorative loops: freeze outright rather than run one 0.01ms cycle. */
+  .scene-ring,
+  .ghost-pulse,
+  .page-enter,
+  .nav__brand-mark,
+  .nav__brand::after,
+  .cta-halo::before,
+  .cta-halo::after {
+    animation: none !important;
+  }
+}
